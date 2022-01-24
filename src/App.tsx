@@ -1,14 +1,15 @@
-import {DragDropContext, Droppable, Draggable, DropResult} from "react-beautiful-dnd";
+import {DragDropContext, Droppable, Draggable, DropResult, DragStart} from "react-beautiful-dnd";
 import { useRecoilState, useRecoilValue } from "recoil";
 import styled from "styled-components";
-import { toDoOrder, toDoState, IToDoState } from "./atoms";
-import Board from "./Components/Board";
+import { toDoState, IToDoState } from "./atoms";
+import Boardss from "./Components/Boards";
 import {useForm} from "react-hook-form"
-import { useEffect } from "react";
+import { useRef, useState } from "react";
 
 const Wrapper = styled.div`
   display: flex;
-  max-width: 6800px;
+  flex-direction: column;
+  max-width: 680px;
   width: 100%;
   margin: 0 auto;
   justify-content: center;
@@ -16,11 +17,43 @@ const Wrapper = styled.div`
   height: 100vh;
 `;
 
+const Header = styled.div`
+  display: flex;
+  margin-bottom: 20px;
+  width: 100%;
+  gap: 30px;
+  justify-content: center;
+  align-items: center;
+`;
+
 const Boards = styled.div`
   display: flex;
   width: 100%;
   gap: 20px;
-  background-color: black;
+  justify-content: center;
+`;
+
+const TrashBox = styled.section`
+  display: flex;
+  align-items: center;
+  font-size: 5rem;
+  margin-top: 20px;
+  opacity: 0.5;
+  &:hover {
+    opacity: 1;
+  }
+`;
+
+const Trash = styled.span`
+  width: 10px;
+  height: 10px;
+`;
+
+const Input = styled.input`
+  border-radius: 5px;
+  padding-left: 5px;
+  border: none;
+  height: 30px;
 `;
 
 interface IForm{
@@ -34,141 +67,173 @@ interface IAreaProps {
 
 function App() {
   const [toDos, setToDos] = useRecoilState(toDoState);
-  const [order, setOrder] = useRecoilState(toDoOrder);
-  Object.values(toDos).map((value, index) => {
-    // console.log(value);
-  });
-  useEffect(() => {
-    let array:any = [];
-    Object.entries(toDos).forEach(([key, value], index) => {
-      array.push(key);
-    });
-    setOrder(array);
-  }, [toDos]);
-
   const onDragEnd = (info: DropResult) => {
-    // const {destination, draggableId, source, type} = info;
-    // if(!destination) return;
-    // if(source.droppableId === "board" && destination.droppableId === "board"){
-    //   console.log(info);
-    //   setToDos(allBoards=> {
-    //     const sourceBoard = [...allBoards[order[source.index]]];  
-    //     const targetBoard = [...allBoards[order[destination.index]]]; 
-    //     let empty:IToDoState = {};
+    const {destination, draggableId, source, type} = info;
+    console.log(info);
+    if(!destination) {
+      return;
+    }
+    if(source.droppableId === "board" && destination.droppableId === "board"){
+      setToDos(allBoards=> {
+        const boardCopy = {...allBoards};
+        const copy= boardCopy[destination.index];
+        boardCopy[destination.index] = boardCopy[source.index];
+        boardCopy[source.index] = copy;
+        return {
+          ...boardCopy,
+        }
+      });
+    }
 
-    //     Object.entries(allBoards).map(([key, value], index) => {
-    //       if(index === source.index){
-    //         console.log(index);
-    //         console.log(order[destination.index], targetBoard);
-    //         empty[order[destination.index]] = targetBoard;
-    //       }
-    //       else if (index === destination.index){
-    //         console.log(index);
-    //         console.log(order[source.index], sourceBoard);
-    //         empty[order[source.index]] = sourceBoard;
-    //       }
-    //       else { empty[key] = value; }
-    //     });
-    //     console.log(empty);
-    //     return empty;
-    //   });
-    //   return;
-    // }
+    if(destination.droppableId == "trash-board") {
+      setToDos(allBoards => {
+        const boardCopy = {...allBoards};
+        let len = 0;
+        Object.values(toDos).map(() =>{
+          len +=1;
+        });
+        Object.entries(boardCopy).map((value, index)=> {
+          if(Number(value[0]) < source.index){
+            return;
+          }
+          if(Number(value[0]) < len-1){
+            boardCopy[index] = boardCopy[index+1]; 
+          }
+          else if(Number(value[0]) === len-1){
+            delete boardCopy[len-1];
+          }
+        });
+        return {
+          ...boardCopy,
+        };
+      });
+      return;
+    } 
 
-    // else if( type === "trash"){
-    //   setToDos(allBoards => {
-    //     const boardCopy = [...allBoards[source.droppableId]];
-    //     boardCopy.splice(source.index, 1);
-    //     return {
-    //       ...allBoards,
-    //       [source.droppableId]: boardCopy
-    //     };
-    //   });
-    //   return;
-    // }
+    if(destination.droppableId == "trash-ToDo") {
+      setToDos(allBoards => {
+        const boardCopy = [...allBoards[Number(source.droppableId)].list];
+        boardCopy.splice(source.index, 1);       
+        return {
+          ...allBoards,
+          [Number(source.droppableId)] : {
+            title: allBoards[Number(source.droppableId)].title,
+            list: boardCopy,
+          },
+        };
+      });
+      return;
+    }
     
-    // if(source.droppableId === destination?.droppableId && source.droppableId !== "board"){
-    //   setToDos(allBoards => {
-    //     const boardCopy = [...allBoards[source.droppableId]];
-    //     const taskObj = boardCopy[source.index];
-    //     boardCopy.splice(source.index, 1);
-    //     boardCopy.splice(destination?.index, 0, taskObj);
-    //     return {
-    //       ...allBoards,
-    //       [source.droppableId]: boardCopy
-    //     };
-    //   });
-    // }
+    if(source.droppableId === destination?.droppableId && source.droppableId !== "board"){
+      setToDos(allBoards => {
+        const boardCopy = [...allBoards[Number(source.droppableId)].list];
+        const taskObj = boardCopy[source.index];
+        boardCopy.splice(source.index, 1);
+        boardCopy.splice(destination?.index, 0, taskObj);
+        return {
+          ...allBoards,
+          [Number(source.droppableId)] : {
+            title: allBoards[Number(source.droppableId)].title,
+            list: boardCopy,
+          },
+        };
+      });
+    }
     
-    // if(source.droppableId !== destination?.droppableId){
-    //   setToDos(allBoards => {
-    //     const sourceBoard = [...allBoards[source.droppableId]];
-    //     const targetBoard = [...allBoards[destination.droppableId]];
-    //     const taskObj = sourceBoard[source.index];
-    //     sourceBoard.splice(source.index, 1);
-    //     targetBoard.splice(destination?.index, 0, taskObj);
-    //     return {
-    //       ...allBoards,
-    //       [source.droppableId]: sourceBoard,
-    //       [destination?.droppableId]: targetBoard,
-    //     }
-    //   });
-    // }
+    if(source.droppableId !== destination?.droppableId){
+      setToDos(allBoards => {
+        const sourceBoard = [...allBoards[Number(source.droppableId)].list];
+        const targetBoard = [...allBoards[Number(destination?.droppableId)].list];
+        const taskObj = sourceBoard[source.index];
+        sourceBoard.splice(source.index, 1);
+        targetBoard.splice(destination?.index as number, 0, taskObj);
+        return {
+          ...allBoards,
+          [Number(source.droppableId)] : {
+            title: allBoards[Number(source.droppableId)].title,
+            list: sourceBoard,
+          },
+          [Number(destination?.droppableId)] : {
+            title: allBoards[Number(destination?.droppableId)].title,
+            list: targetBoard,
+          },
+        }
+      });
+    }
   };
  
-  // const {register, setValue, handleSubmit} = useForm<IForm>();
-  // const onValid = ({category}:IForm) => {
-  //   setToDos((prev) => {
-  //     return {
-  //       ...prev,
-  //       [category]: [],
-  //     };
-  //   });   
-  // }
+  const {register, setValue, handleSubmit} = useForm<IForm>();
+  const boardInput = useRef<HTMLInputElement | null>(null);
+  const { ref, ...rest } = register('category', {required:true});
+  const onValid = ({category}:IForm) => {
+    setToDos((prev) => {
+      let len = 0;
+      Object.values(toDos).map(() =>{
+        len +=1;
+      });
+      return {
+        ...prev,
+        [len] : {
+          title: category,
+          list: [],
+        },
+      };
+    }); 
+    setValue("category", "");
+    boardInput.current?.blur(); 
+  }
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      {/* <Droppable droppableId="trash">
-        {(magic) => (
-          <span 
-            ref={magic.innerRef} 
-            {...magic.droppableProps}
-          >
-            trash
-          </span>
-        )}
-      </Droppable>
-      <form onSubmit={handleSubmit(onValid)}>
-        <input 
-          {...register("category", {required:true})} 
-          type="text" 
-          placeholder=""
-        />
-      </form> */}
-      
       <Wrapper>
-        <Droppable droppableId="board" direction="horizontal">
+        <Header>
+          <form onSubmit={handleSubmit(onValid)}>
+            <Input 
+              {...rest} 
+              type="text" 
+              placeholder="Add Board"
+              ref={(e) => {
+                ref(e)
+                boardInput.current = e // you can still assign to ref
+              }}
+            />
+          </form>
+        </Header>
+        <Droppable droppableId="board" type="board" direction="horizontal">
           {(magic) => (
             <Boards
               ref={magic.innerRef} 
               {...magic.droppableProps}
             >
               {Object.values(toDos).map((value, index) => (
-                <Draggable draggableId={value.title} key={value.title} index={Number(index)}>
-                  {(magic) => (
-                    <div
-                      ref={magic.innerRef}
-                      {...magic.draggableProps}
-                      {...magic.dragHandleProps}
-                    >
-                      <Board boardId={value.title} pkey={index} toDos={value.list} />
-                    </div>
-                  )}
-                </Draggable>
-              ))}
+                <Boardss title={value.title} index={index} list={value.list}/>
+              ))}{magic.placeholder}
             </Boards>
           )}
         </Droppable>
-      </Wrapper>     
+        <TrashBox>
+          <Droppable droppableId="trash-board" type="board">
+            {(magic) => (
+              <Trash 
+                ref={magic.innerRef} 
+                {...magic.droppableProps}
+              >{magic.placeholder}
+              </Trash>
+            )}
+          </Droppable>  
+          🗑
+          <Droppable droppableId="trash-ToDo" type="ToDo">
+            {(magic) => (
+              <Trash 
+                ref={magic.innerRef} 
+                {...magic.droppableProps}
+              >{magic.placeholder}
+              </Trash>
+            )}
+          </Droppable>
+        </TrashBox>
+             
+        </Wrapper>
     </DragDropContext>
   );
 }

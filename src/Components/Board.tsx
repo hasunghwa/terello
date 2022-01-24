@@ -1,16 +1,17 @@
-import {Droppable, Draggable} from "react-beautiful-dnd";
+import {Droppable} from "react-beautiful-dnd";
 import DragabbleCard from "./DragabbleCard";
 import styled from "styled-components";
 import {useForm} from "react-hook-form"
 import { ITodo, toDoState } from "../atoms";
 import { useSetRecoilState } from "recoil";
+import { useRef } from "react";
 
 const Wrapper = styled.div`
-  width: 300px;
+  width: 200px;
   padding-top: 10px;
   background-color: ${(props) => props.theme.boardColor};
   border-radius: 5px;
-  min-height: 300px;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
 `;
@@ -41,6 +42,14 @@ const Form = styled.form`
   }
 `;
 
+const Input = styled.input`
+  border-radius: 5px;
+  padding-left: 5px;
+  border: none;
+  height: 30px;
+  text-align: center;
+`;
+
 interface IBoardProps {
   toDos: ITodo[];
   boardId: string;
@@ -54,8 +63,11 @@ interface IForm{
 function Board({toDos, pkey, boardId}: IBoardProps){
   const setToDo = useSetRecoilState(toDoState);
   const {register, setValue, handleSubmit} = useForm<IForm>();
+  const taskInput = useRef<HTMLInputElement | null>(null);
+  const { ref, ...rest } = register('toDo', {required:true});
+
   const onValid = ({toDo}:IForm) => {
-    console.log(toDos);
+    const { current } = taskInput;
     const newToDo = {
       id: Date.now(),
       text: toDo,
@@ -70,19 +82,25 @@ function Board({toDos, pkey, boardId}: IBoardProps){
         },
       };
     });
+    setValue("toDo", "");
+    taskInput.current?.blur();
   }
 
   return (
     <Wrapper>
       <Title>{boardId}</Title>
       <Form onSubmit={handleSubmit(onValid)}>
-        <input 
-          {...register("toDo", {required:true})} 
+        <Input 
+          {...rest}
           type="text" 
-          placeholder=""
+          placeholder="Add task"
+          ref={(e) => {
+            ref(e)
+            taskInput.current = e // you can still assign to ref
+          }}
         />
       </Form>
-      <Droppable droppableId={boardId}>
+      <Droppable droppableId={String(pkey)} key={boardId} type="ToDo">
         {(magic, info) => (
           <Area
             isDraggingOver={info.isDraggingOver} 

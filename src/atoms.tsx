@@ -1,10 +1,5 @@
 import {atom, selector} from "recoil";
 
-export const toDoOrder = atom({
-  key: "toDoOrder",
-  default: ["1", "2", "3"],
-});
-
 export interface ITodo {
   id: number;
   text: string;
